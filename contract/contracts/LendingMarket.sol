@@ -11,6 +11,7 @@ contract LoanMarket {
     constructor(address FILTokenAddress) {
         owner = msg.sender;
         FIL = ERC20(FILTokenAddress);
+        index = 0;
     }
 
     struct Lender {
@@ -18,17 +19,22 @@ contract LoanMarket {
         uint interest;
     }
 
-    mapping(address => Lender) lenders;
+    Lender[] lenders;
+    mapping(address => uint) addressToIndex;
     mapping(address => address) minerAddressToLoanAgent;
     uint totalAmount;
+    uint index;
 
     function deposit(uint256 amount) public {
         require(
             FIL.transferFrom(msg.sender, address(this), amount),
             "Deposit failed."
         );
-        lenders[msg.sender].depositAmount += amount;
+        lenders[addressToIndex[msg.sender]].depositAmount += amount;
         totalAmount += amount;
+        if (addressToIndex[msg.sender] == 0) {
+            index++;
+        }
     }
 
     function createLoanAgent(
@@ -82,19 +88,26 @@ contract LoanMarket {
     function receiveRepayment(address _loanAgent, uint _amount) public {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
         loanAgent.receiveRepayment(address(this), _amount);
+        for (uint i = 0; i < lenders.length; i++) {
+            uint depositPropotion = (lenders[i].depositAmount +
+                lenders[i].interest) / totalAmount;
+            uint interest = _amount * depositPropotion;
+            lenders[i].interest += interest;
+        }
     }
 
     function withdraw(uint _amount) public returns (uint) {
         require(
-            (lenders[msg.sender].depositAmount +
-                lenders[msg.sender].interest) >= _amount,
+            (lenders[addressToIndex[msg.sender]].depositAmount +
+                lenders[addressToIndex[msg.sender]].interest) >= _amount,
             "You can't withdraw over sum of you deposited and interest."
         );
 
-        uint depositAmount = lenders[msg.sender].depositAmount;
+        uint depositAmount = lenders[addressToIndex[msg.sender]].depositAmount;
         if (_amount > depositAmount) {
-            lenders[msg.sender].interest -= (_amount - depositAmount);
-            lenders[msg.sender].depositAmount = 0;
+            lenders[addressToIndex[msg.sender]].interest -= (_amount -
+                depositAmount);
+            lenders[addressToIndex[msg.sender]].depositAmount = 0;
         } else {
             depositAmount -= _amount;
         }

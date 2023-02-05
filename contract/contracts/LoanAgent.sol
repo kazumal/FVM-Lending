@@ -76,7 +76,7 @@ contract LoanAgent {
         MinerAPI.changeBeneficiary(toBytes(_target), changeBeneficiaryParams);
     }
 
-    function makeNewQuota(uint _val) public returns (BigInt memory) {
+    function makeNewQuota(uint _val) public pure returns (BigInt memory) {
         BigInt memory bigInt;
         bytes memory val = abi.encodePacked(_val);
         bigInt = BigInt({val: val, neg: false});
