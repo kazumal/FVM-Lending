@@ -2,12 +2,15 @@
 pragma solidity ^0.8.17;
 
 import "./LoanAgent.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract LoanMarket {
+    ERC20 public FIL;
     address public owner;
 
-    constructor() {
+    constructor(address FILTokenAddress) {
         owner = msg.sender;
+        FIL = ERC20(FILTokenAddress);
     }
 
     struct Lender {
@@ -19,13 +22,13 @@ contract LoanMarket {
     mapping(address => address) minerAddressToLoanAgent;
     uint totalAmount;
 
-    function deposit(uint256 _amount) public payable {
+    function deposit(uint256 amount) public {
         require(
-            msg.sender.transfer(address(this), _amount),
-            "Transfer failed."
+            FIL.transferFrom(msg.sender, address(this), amount),
+            "Deposit failed."
         );
-        lenders[msg.sdenr].depositAmount += msg.value;
-        totalAmount += msg.value;
+        lenders[msg.sender].depositAmount += amount;
+        totalAmount += amount;
     }
 
     function createLoanAgent(
@@ -37,7 +40,8 @@ contract LoanMarket {
         bytes32 loanAgentId = keccak256(
             abi.encodePacked(msg.sender, _minerActor, this)
         );
-        address loanAgentAddress = address(uint(loanAgentId));
+        bytes memory loanAgentIdBytes = abi.encodePacked(loanAgentId);
+        address loanAgentAddress = bytesToAddress(loanAgentIdBytes);
         LoanAgent loanAgent = new LoanAgent(
             _minerActor,
             _totalAmount,
@@ -49,25 +53,23 @@ contract LoanMarket {
         minerAddressToLoanAgent[_minerActor] = loanAgentAddress;
     }
 
-    function changeBeneficiary(
-        address _loanAgent
-    ) public returns (address _loanAgent) {
+    function changeBeneficiary(address _loanAgent) public returns (address) {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
         require(
-            loanAgent.getMinerOwner(_loanAgent) == loanAgentAddress,
+            loanAgent.getMinerOwner(_loanAgent) == _loanAgent,
             "Loan agent ownership transfer failed."
         );
-        loanAgent.changeBeneficiary(_loanAgent);
+        loanAgent.changeBeneficiary(_loanAgent, address(this), 10000, 10000);
+        return (_loanAgent);
     }
 
-    function beneficiaryChanged(
-        address _loanAgent
-    ) public view returns (_loanAgent) {
+    function beneficiaryChanged(address _loanAgent) public returns (address) {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
         require(
             loanAgent.getBeneficiaryAddress(_loanAgent) == _loanAgent,
             "Beneficiary address is not changed."
         );
+        return _loanAgent;
     }
 
     function getRepaymentSchedule(
@@ -80,32 +82,41 @@ contract LoanMarket {
     function receiveRepayment(address _loanAgent, uint _amount) public {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
         loanAgent.receiveRepayment(address(this), _amount);
-        for (uint i = 0; i < lenders.length; i++) {
-            uint depositPropotion = (lenders[i].depositAmount +
-                lenders[i].interest) / totalAmount;
-            uint interest = lenders[i].interest * depositPropotion;
-            lenders[i].interest += interest;
-        }
     }
 
-    function withdraw(uint _amount) public returns (_amount) {
+    function withdraw(uint _amount) public returns (uint) {
         require(
             (lenders[msg.sender].depositAmount +
                 lenders[msg.sender].interest) >= _amount,
             "You can't withdraw over sum of you deposited and interest."
         );
 
-        uint deposit = lenders[msg.sender].depositAmount;
-        if (_amount > deposit) {
-            lenders[msg.sender].interest -= (_amount - deposit);
-            deposit = 0;
+        uint depositAmount = lenders[msg.sender].depositAmount;
+        if (_amount > depositAmount) {
+            lenders[msg.sender].interest -= (_amount - depositAmount);
+            lenders[msg.sender].depositAmount = 0;
         } else {
-            deposit -= _amount;
+            depositAmount -= _amount;
         }
 
         require(
-            msg.sender.transfer(address(this), _amount),
+            FIL.transferFrom(address(this), msg.sender, _amount),
             "Transfer failed."
         );
+        return _amount;
+    }
+
+    //@dev Convert address to bytes
+    function toBytes(address a) public pure returns (bytes memory) {
+        return abi.encodePacked(a);
+    }
+
+    //@dev Convert Bytes to address
+    function bytesToAddress(
+        bytes memory _bys
+    ) private pure returns (address addr) {
+        assembly {
+            addr := mload(add(_bys, 20))
+        }
     }
 }
