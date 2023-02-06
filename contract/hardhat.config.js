@@ -11,7 +11,7 @@ module.exports = {
   networks: {
     hyperspace: {
       chainId: 3141,
-      url: "127.0.0.1:1234/rpc/v0",
+      url: "https://api.hyperspace.node.glif.io/rpc/v1",
       accounts: [PRIVATE_KEY],
     },
   },

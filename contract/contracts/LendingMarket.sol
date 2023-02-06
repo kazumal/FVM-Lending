@@ -2,15 +2,12 @@
 pragma solidity ^0.8.17;
 
 import "./LoanAgent.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract LendingMarket {
-    ERC20 public FIL;
     address public owner;
 
-    constructor(address FILTokenAddress) {
+    constructor() {
         owner = msg.sender;
-        FIL = ERC20(FILTokenAddress);
         index = 0;
     }
 
@@ -19,6 +16,8 @@ contract LendingMarket {
         uint interest;
     }
 
+    //@dev Serch specific lenders by using lenders, addressToIndex, and index
+    //     lenders[addressToIndex[index]] By doing this  you can reach AddressToLenderInformation
     Lender[] lenders;
     mapping(address => uint) addressToIndex;
     mapping(address => address) minerAddressToLoanAgent;
@@ -26,10 +25,6 @@ contract LendingMarket {
     uint index;
 
     function deposit(uint256 amount) public {
-        require(
-            FIL.transferFrom(msg.sender, address(this), amount),
-            "Deposit failed."
-        );
         lenders[addressToIndex[msg.sender]].depositAmount += amount;
         totalAmount += amount;
         if (addressToIndex[msg.sender] == 0) {
@@ -59,23 +54,9 @@ contract LendingMarket {
         minerAddressToLoanAgent[_minerActor] = loanAgentAddress;
     }
 
-    function changeBeneficiary(address _loanAgent) public returns (address) {
+    function activate(address _loanAgent) private returns (bool) {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
-        require(
-            loanAgent.getMinerOwner(_loanAgent) == _loanAgent,
-            "Loan agent ownership transfer failed."
-        );
-        loanAgent.changeBeneficiary(_loanAgent, address(this), 10000, 10000);
-        return (_loanAgent);
-    }
-
-    function beneficiaryChanged(address _loanAgent) public returns (address) {
-        LoanAgent loanAgent = LoanAgent(_loanAgent);
-        require(
-            loanAgent.getBeneficiaryAddress(_loanAgent) == _loanAgent,
-            "Beneficiary address is not changed."
-        );
-        return _loanAgent;
+        return loanAgent.activate();
     }
 
     function getRepaymentSchedule(
@@ -112,10 +93,6 @@ contract LendingMarket {
             depositAmount -= _amount;
         }
 
-        require(
-            FIL.transferFrom(address(this), msg.sender, _amount),
-            "Transfer failed."
-        );
         return _amount;
     }
 

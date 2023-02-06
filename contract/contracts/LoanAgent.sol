@@ -17,6 +17,7 @@ contract LoanAgent {
         uint256 loanPeriod;
         uint256 nextPaymentDate;
         uint256 amountExpected;
+        bool activated;
     }
 
     Loan loan;
@@ -36,7 +37,8 @@ contract LoanAgent {
             interestRate: _interestRate,
             loanPeriod: _loanPeriod,
             nextPaymentDate: 0,
-            amountExpected: 0
+            amountExpected: 0,
+            activated: false
         });
     }
 
@@ -121,6 +123,15 @@ contract LoanAgent {
         SendAPI.send(toBytes(_loanMarket), _amount);
         loan.remainingLoanAmount -= _amount;
         return (_amount);
+    }
+
+    function activate() public returns (bool) {
+        require(
+            getBeneficiaryAddress(address(this)) == address(this),
+            "Beneficiary is not changed."
+        );
+        loan.activated = true;
+        return (true);
     }
 
     function finishLoan() public returns (address) {

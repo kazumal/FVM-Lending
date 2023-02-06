@@ -11,10 +11,10 @@ module.exports = async ({ deployments }) => {
   const chainId = network.config.chainId;
   const tokensToBeMinted = networkConfig[chainId]["tokensToBeMinted"];
 
-  //deploy Simplecoin
-  const SimpleCoin = await ethers.getContractFactory("SimpleCoin", wallet);
-  console.log("Deploying Simplecoin...");
-  const simpleCoin = await SimpleCoin.deploy(tokensToBeMinted);
-  await simpleCoin.deployed();
-  console.log("SimpleCoin deployed to:", simpleCoin.address);
+  //deploy LoanMarket
+  const LendingMarket = await ethers.getContractFactory("LendingMarket", wallet);
+  console.log("Deploying LendingMarket...");
+  const lendingMarket = await LendingMarket.deploy(tokensToBeMinted);
+  await lendingMarket.deployed();
+  console.log("LendingMarket deployed to:", lendingMarket.address);
 };
