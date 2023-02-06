@@ -1,4 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
 require("dotenv").config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -9,7 +11,7 @@ module.exports = {
   networks: {
     hyperspace: {
       chainId: 3141,
-      url: "https://api.hyperspace.node.glif.io/rpc/v1",
+      url: "127.0.0.1:1234/rpc/v0",
       accounts: [PRIVATE_KEY],
     },
   },

@@ -1,23 +1,20 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
-const hre = require("hardhat");
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
 
-async function main() {
-  const Loan = await hre.ethers.getContractFactory("LoanMarket");
-  const loan = await Loan.deploy();
+const { networkConfig } = require("../helper-hardhat-config");
 
-  await loan.deployed();
+const private_key = network.config.accounts[0];
+const wallet = new ethers.Wallet(private_key, ethers.provider);
 
-  console.log("LoanMarket contract is successfully deployed.");
-}
+module.exports = async ({ deployments }) => {
+  console.log("Wallet Ethereum Address:", wallet.address);
+  const chainId = network.config.chainId;
+  const tokensToBeMinted = networkConfig[chainId]["tokensToBeMinted"];
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+  //deploy Simplecoin
+  const SimpleCoin = await ethers.getContractFactory("SimpleCoin", wallet);
+  console.log("Deploying Simplecoin...");
+  const simpleCoin = await SimpleCoin.deploy(tokensToBeMinted);
+  await simpleCoin.deployed();
+  console.log("SimpleCoin deployed to:", simpleCoin.address);
+};
