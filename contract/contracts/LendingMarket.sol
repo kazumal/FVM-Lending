@@ -4,32 +4,57 @@ pragma solidity ^0.8.17;
 import "./LoanAgent.sol";
 
 contract LendingMarket {
-    address public owner;
-
-    constructor() {
-        owner = msg.sender;
-        index = 0;
-    }
-
     struct Lender {
         uint depositAmount;
         uint interest;
     }
 
-    //@dev Serch specific lenders by using lenders, addressToIndex, and index
-    //     lenders[addressToIndex[index]] By doing this  you can reach AddressToLenderInformation
-    Lender[] lenders;
-    mapping(address => uint) addressToIndex;
-    mapping(address => address) minerAddressToLoanAgent;
-    uint totalAmount;
-    uint index;
+    mapping(address => Lender) lenders;
+    address[] lenderArray;
+    uint sumOfFunds;
 
     function deposit(uint256 amount) public {
-        lenders[addressToIndex[msg.sender]].depositAmount += amount;
-        totalAmount += amount;
-        if (addressToIndex[msg.sender] == 0) {
-            index++;
+        lenders[msg.sender].depositAmount += amount;
+        sumOfFunds += amount;
+        if (firstDeposit(msg.sender)) {
+            lenderArray.push(msg.sender);
         }
+    }
+
+    function firstDeposit(address) private view returns (bool) {
+        for (uint i = 0; i < lenderArray.length; i++) {
+            if (lenderArray[i] == msg.sender) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function withdraw(uint _amount) public returns (uint) {
+        require(
+            (lenders[msg.sender].depositAmount +
+                lenders[msg.sender].interest) >= _amount,
+            "You can't withdraw over sum of you deposited and interest."
+        );
+
+        uint depositAmount = lenders[msg.sender].depositAmount;
+        if (_amount > depositAmount) {
+            lenders[msg.sender].interest -= (_amount - depositAmount);
+            lenders[msg.sender].depositAmount = 0;
+        } else {
+            lenders[msg.sender].depositAmount -= _amount;
+        }
+
+        sumOfFunds -= _amount;
+
+        return _amount;
+    }
+
+    function getPL() public view returns (uint depositAmount, uint interest) {
+        return (
+            lenders[msg.sender].depositAmount,
+            lenders[msg.sender].interest
+        );
     }
 
     function createLoanAgent(
@@ -51,7 +76,6 @@ contract LendingMarket {
         );
         // @dev Borrower will check to change owner in frontend.
         loanAgent.changeOwner(_minerActor, loanAgentAddress);
-        minerAddressToLoanAgent[_minerActor] = loanAgentAddress;
     }
 
     function activate(address _loanAgent) private returns (bool) {
@@ -69,35 +93,22 @@ contract LendingMarket {
     function receiveRepayment(address _loanAgent, uint _amount) public {
         LoanAgent loanAgent = LoanAgent(_loanAgent);
         loanAgent.receiveRepayment(address(this), _amount);
-        for (uint i = 0; i < lenders.length; i++) {
-            uint depositPropotion = (lenders[i].depositAmount +
-                lenders[i].interest) / totalAmount;
-            uint interest = _amount * depositPropotion;
-            lenders[i].interest += interest;
+        for (uint i = 0; i < lenderArray.length; i++) {
+            uint portion = calculateInterest(lenderArray[i]);
+            lenders[lenderArray[i]].interest += portion * _amount;
         }
+        sumOfFunds += _amount;
     }
 
-    function withdraw(uint _amount) public returns (uint) {
-        require(
-            (lenders[addressToIndex[msg.sender]].depositAmount +
-                lenders[addressToIndex[msg.sender]].interest) >= _amount,
-            "You can't withdraw over sum of you deposited and interest."
-        );
-
-        uint depositAmount = lenders[addressToIndex[msg.sender]].depositAmount;
-        if (_amount > depositAmount) {
-            lenders[addressToIndex[msg.sender]].interest -= (_amount -
-                depositAmount);
-            lenders[addressToIndex[msg.sender]].depositAmount = 0;
-        } else {
-            depositAmount -= _amount;
-        }
-
-        return _amount;
+    function calculateInterest(address _lender) private view returns (uint) {
+        uint totalFunds = lenders[_lender].depositAmount +
+            lenders[_lender].interest;
+        uint portion = totalFunds / sumOfFunds;
+        return portion;
     }
 
     //@dev Convert address to bytes
-    function toBytes(address a) public pure returns (bytes memory) {
+    function toBytes(address a) private pure returns (bytes memory) {
         return abi.encodePacked(a);
     }
 

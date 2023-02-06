@@ -12,7 +12,7 @@ const App = () => {
             <a href="#">Home</a>
           </li>
           <li>
-            <a href="#">About</a>
+            <a href="#">Make new Loan</a>
           </li>
           <li>
             <a href="#">Contact</a>
